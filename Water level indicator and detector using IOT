@@ -1,0 +1,65 @@
+#define BLYNK_TEMPLATE_ID "YOUR_TEMPLATE_ID"
+#define BLYNK_TEMPLATE_NAME "Water Tank Level Indicator" #define BLYNK_AUTH_TOKEN "YOUR_BLYNK_AUTH_TOKEN"
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h> #include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+char ssid[] = "Raj";
+char pass[] = "00000000";
+// Ultrasonic Sensor Pins #define TRIG_PIN 5
+#define ECHO_PIN 18
+// Buzzer Pin #define BUZZER 25
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); BlynkTimer timer;
+// Tank Height in cm const int tankHeight = 30;
+
+void sendSensor()
+{
+digitalWrite(TRIG_PIN, LOW); delayMicroseconds(2);
+digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10); digitalWrite(TRIG_PIN, LOW);
+
+long duration = pulseIn(ECHO_PIN, HIGH); float distance = duration * 0.034 / 2;
+int waterLevel = ((tankHeight - distance) * 100) / tankHeight;
+
+if (waterLevel > 100) waterLevel = 100; if (waterLevel < 0) waterLevel = 0;
+
+Serial.print("Water Level: "); Serial.print(waterLevel); Serial.println("%");
+
+Blynk.virtualWrite(V0, waterLevel);
+
+lcd.setCursor(0, 0); lcd.print("Level:"); lcd.print(waterLevel); lcd.print("% ");
+if (waterLevel <= 20)
+{
+digitalWrite(BUZZER, HIGH);
+lcd.setCursor(0, 1); lcd.print("LOW WATER!	");
+
+Blynk.virtualWrite(V1, "LOW WATER"); Blynk.virtualWrite(V2, 1);
+}
+else
+{
+digitalWrite(BUZZER, LOW);
+lcd.setCursor(0, 1); lcd.print("TANK NORMAL	");
+
+Blynk.virtualWrite(V1, "NORMAL"); Blynk.virtualWrite(V2, 0);
+}
+}
+
+void setup()
+{
+Serial.begin(115200);
+pinMode(TRIG_PIN, OUTPUT); pinMode(ECHO_PIN, INPUT); pinMode(BUZZER, OUTPUT);
+lcd.init(); lcd.backlight();
+
+lcd.setCursor(0, 0); lcd.print("Connecting...");
+Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+
+lcd.clear();
+lcd.print("Blynk Connected");
+
+timer.setInterval(1000L, sendSensor);
+}
+
+void loop()
+{
+Blynk.run();
+timer.run();
+}
